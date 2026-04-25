@@ -1,0 +1,98 @@
+DDS Converter — by DiccChops
+## DDS Converter — by DiccChops
+===================================================================
+
+
+# WHAT IT DOES
+
+Converts image files (PNG, JPG, JPEG, TGA, BMP) into DirectX DDS
+format using Microsoft's texconv.exe from the DirectXTex library.
+DDS files are widely used in games and real-time 3D applications
+for GPU-compressed textures with optional mipmap chains.
+
+
+# REQUIREMENTS
+
+! texconv.exe — place it in the same folder as DDS.py
+~ Download from: https://github.com/microsoft/DirectXTex/releases
+
+
+# HOW TO USE
+
++ 1. INPUT FOLDER
+   Select the folder containing your source images.
+
++ 2. OUTPUT FOLDER
+   Select where the converted DDS files will be saved.
+
++ 3. FORMAT  —  Choose the DDS compression format:
+
+   DXT1            Opaque / 1-bit alpha. Smallest file size.
+   DXT3            Explicit alpha. Good for sharp alpha edges.
+   DXT5            Smooth alpha / gradients. Most common choice.
+   BC4_UNORM       Single-channel greyscale (R only).
+   BC5_UNORM       Two-channel (R+G), ideal for normal maps.
+   BC7_UNORM       High-quality RGBA. Better than DXT5, slightly larger.
+   R8G8B8A8_UNORM  Uncompressed RGBA. No quality loss, largest size.
+
++ 4. MIPMAPS
+   Tick to generate a full mipmap chain (recommended
+   for most in-game textures).
+
++ 5. CONVERT ALL
+   Click ▶ START CONVERSION to process every file in
+   the input folder at once.
+
++ 6. CONVERT ONE
+   Click the small ▶ button next to any file in the
+   queue to convert only that file.
+
+
+# TINT / SPECULAR COLOUR
+
+Select an image from the FILE QUEUE, then pick a tint colour and
+set the intensity. The tint is baked into the image before it is
+sent to texconv — useful for colour-shifted variants, specular
+colour masks, or team-colour textures.
+
+   PRESETS       Quick-pick common colours with one click.
+   ⊕ CUSTOM      Open a colour picker for any colour you need.
+   INTENSITY     Controls how strongly the tint blends (0–100 %).
+   MODE          Blending algorithm:
+
+~    Multiply      Darkens — good for shadows / masks.
+~    Screen        Lightens — good for glows.
+~    Overlay       Contrast boost.
+~    Add           Additive brightening.
+~    Tint (Lerp)   Simple linear blend.
+
+   APPLY TO ALL  Apply the current tint settings to every file.
+   CLEAR TINT    Remove the tint from the selected file only.
+
+~ The BEFORE panel shows a live preview of the tinted source image.
+~ The AFTER panel shows the last converted DDS for that file.
+
+
+# THEMES & COLOURS
+
+Click ⚙ in the title bar to open Settings.
+
++  Choose a preset theme: Dark, Light, Matrix, DarkBlueGrey.
++  Click any colour swatch to customise that UI element.
++  Click 💾 SAVE AS DEFAULT to persist settings across sessions.
++  Toggle "Show info window on startup" to control this screen.
+
+
+# KEYBOARD / MOUSE
+
+   Drag title bar    Move the window.
+   Double-click bar  Maximise / restore.
+   ─                 Minimise to taskbar.
+   □ / ❐             Maximise / restore.
+   ✕                 Close the application.
+   Scroll wheel      Scroll the file queue list.
+
+
+===================================================================
+~ DDS Converter v3.0  •  Built with Python + Pillow + texconv
+===================================================================
