@@ -1,4 +1,4 @@
-# DDS Converter
+﻿# DDS Converter
 > by DiccChops
 
 A lightweight borderless GUI tool for converting game textures to **DirectX DDS format** on Windows.  
@@ -8,17 +8,18 @@ Wraps Microsoft's `texconv.exe` from the [DirectXTex](https://github.com/microso
 
 ## Features
 
-- **Batch conversion** � convert an entire folder of images in one click
-- **Single file conversion** � convert just one file straight from the queue
-- **7 DDS formats** � DXT1, DXT3, DXT5, BC4\_UNORM, BC5\_UNORM, BC7\_UNORM, R8G8B8A8\_UNORM
-- **Mipmap generation** � optional full mipmap chain for in-game use
-- **Tint / Specular baking** � bake a colour tint into the texture before conversion
+- **Batch conversion** — convert an entire folder of images in one click
+- **Single file conversion** — convert just one file straight from the queue
+- **7 output formats** — DDS, PNG, JPG, TGA, BMP, WebP, SVG
+- **7 DDS formats** — DXT1, DXT3, DXT5, BC4\_UNORM, BC5\_UNORM, BC7\_UNORM, R8G8B8A8\_UNORM
+- **Mipmap generation** — optional full mipmap chain for in-game use
+- **Tint / Specular baking** — bake a colour tint into the texture before conversion
   - 5 blend modes: Multiply, Screen, Overlay, Add, Tint (Lerp)
-  - Per-file or Apply to All
-- **Live preview** � side-by-side Before / After panels with tint preview
-- **Conversion log** � timestamped output for every file processed
-- **4 built-in themes** � Dark, Light, Matrix, DarkBlueGrey � fully customisable per colour
-- **Persistent settings** � theme and preferences saved to `dds_settings.json`
+  - Per-file tint or Apply to All
+- **Live preview** — side-by-side Before / After panels with real-time tint preview
+- **Conversion log** — timestamped output for every file processed
+- **4 built-in themes** — Dark, Light, Matrix, DarkBlueGrey — fully customisable per colour
+- **Persistent settings** — theme, folders, and preferences saved to `dds_settings.json`
 
 ---
 
@@ -31,7 +32,7 @@ Wraps Microsoft's `texconv.exe` from the [DirectXTex](https://github.com/microso
 | Targa  | `.tga`    |
 | Bitmap | `.bmp`    |
 
-**Output:** DirectX DDS � ready to drop into a game engine or 3D application
+**Output:** DirectX DDS — ready to drop into a game engine or 3D application
 
 ---
 
@@ -39,61 +40,53 @@ Wraps Microsoft's `texconv.exe` from the [DirectXTex](https://github.com/microso
 
 | Requirement | Notes |
 |-------------|-------|
-| Windows     | Tested on Windows 10/11 |
-| `texconv.exe` | Must be placed in the **same folder** as the app |
-| Python 3.x  | Only needed if running from source |
-| Pillow      | Only needed if running from source � `pip install Pillow` |
+| Windows 10 / 11 | Tested on both |
+| `texconv.exe` | Must be placed in the **same folder** as `DDS Converter.exe` |
+| Python 3.x | Only needed if running from source |
+| Pillow | Only needed if running from source — `pip install Pillow` |
 
-**Download `texconv.exe`:**  
-?? https://github.com/microsoft/DirectXTex/releases
+---
+
+## Download
+
+📦 **Go to the [Releases](../../releases) page and download the latest zip.**
+
+Unzip it — everything is inside, ready to run. No install needed.
+
+> ⚠️ `texconv.exe` is **not** included in the zip (Microsoft redistribution restriction).  
+> Download it separately and drop it in the same folder as `DDS Converter.exe`:  
+> 🔗 https://github.com/microsoft/DirectXTex/releases
 
 ---
 
 ## Getting Started
 
-### Option A � Pre-built (Recommended)
-1. Download or build the `Image To DDS` folder (see [Building](#building))
-2. Place `texconv.exe` inside the folder
-3. Double-click `DDS Converter.exe`
+1. Download the latest zip from [Releases](../../releases)
+2. Unzip anywhere
+3. Download `texconv.exe` from the link above and place it in the unzipped folder
+4. Double-click `DDS Converter.exe` — no install, no Python needed
 
-### Option B � From Source
-```bash
-pip install Pillow
-py DDS.py
-```
-
----
-
-## Building
-
-A `build.bat` is included to package everything into a standalone `.exe` using PyInstaller.
-
-```
-Double-click build.bat
-```
-
-It will:
-- Auto-install PyInstaller and Pillow if missing
-- Build a single `DDS Converter.exe` (no console window)
-- Create an `Image To DDS` folder containing everything needed
-- Open the finished folder in Explorer
-
-> **Note:** PyInstaller must be able to run via `py -m PyInstaller`. Python must be on your PATH.
+> **Running from source?**
+> ```bash
+> pip install Pillow
+> py DDS.py
+> ```
 
 ---
 
-## Project Structure
+## What's in the Release zip
 
 ```
-Img To DDS/
-??? DDS.py              # Main application
-??? build.bat           # Build script
-??? info.txt            # In-app help content
-??? DDSIcon.png         # App icon (PNG)
-??? DDSIcon.ico         # App icon (ICO)
-??? dds_settings.json   # Saved settings (auto-generated)
-??? texconv.exe         # ? Not included � download separately
+DDS Converter/
+├── DDS Converter.exe    # Standalone app — no Python required
+├── info.txt             # In-app help content
+├── DDSIcon.png          # App icon
+├── README.txt           # Quick-start instructions
+└── texconv.exe          # ⚠️ NOT included — download separately (link above)
 ```
+
+> Source code (`DDS.py`, `build.bat`, etc.) lives only in this repository.  
+> The repo contains no binaries — everything distributable is attached to a Release.
 
 ---
 
@@ -104,8 +97,8 @@ Img To DDS/
 | DXT1 | 1-bit / none | Opaque textures, smallest file size |
 | DXT3 | Explicit | Sharp alpha edges |
 | DXT5 | Smooth | Gradients, most common choice |
-| BC4\_UNORM | � | Single-channel greyscale (R only) |
-| BC5\_UNORM | � | Two-channel (R+G), normal maps |
+| BC4\_UNORM | — | Single-channel greyscale (R only) |
+| BC5\_UNORM | — | Two-channel (R+G), normal maps |
 | BC7\_UNORM | Full | High-quality RGBA, better than DXT5 |
 | R8G8B8A8\_UNORM | Full | Uncompressed, no quality loss |
 
@@ -113,7 +106,7 @@ Img To DDS/
 
 ## License
 
-Free to use, modify, and share � do whatever you want with it.  
+Free to use, modify, and share — do whatever you want with it.  
 **Just give credit: made by DiccChops.**
 
 ---
@@ -122,18 +115,18 @@ Free to use, modify, and share � do whatever you want with it.
 
 ### v4.0
 - App now launches fullscreen by default
-- Maximize/restore button correctly reflects window state on startup
+- Maximize / restore button correctly reflects window state on startup
 - Info window now opens centred over the main window instead of top-left
-- Startup flash (white flicker) eliminated � window fades in invisibly during Win32 taskbar registration
-- **?? OPEN** button added next to Output Folder to instantly open it in Explorer
+- Startup flash (white flicker) eliminated — window fades in invisibly during Win32 taskbar registration
+- **📂 OPEN** button added next to Output Folder to instantly open it in Explorer
 - JPG Quality control is now hidden and only appears when JPG output is selected, with inline hint text (`100=lossless  95=high  85=web  75=small  60=low`)
-- File queue `?` convert button is now always visible regardless of filename length (pack order fix)
+- File queue ▶ convert button is now always visible regardless of filename length
 
 ### v3.0
 - Added 7 output formats: DDS, PNG, JPG, TGA, BMP, WebP, SVG
 - SVG output embeds the raster image as base64 PNG inside an SVG wrapper
 - JPG quality spinbox added
-- Per-file tint store � each file remembers its own colour, intensity, and blend mode
+- Per-file tint store — each file remembers its own colour, intensity, and blend mode
 - **Apply to All** tint button
 - 5 blend modes: Multiply, Screen, Overlay, Add, Tint (Lerp)
 - Quick-pick colour swatches + custom colour picker
@@ -144,7 +137,7 @@ Free to use, modify, and share � do whatever you want with it.
 - Crash log written to `dds_crash.log` next to the app
 
 ### v2.0
-- Borderless custom title bar with drag, minimize, maximize/restore
+- Borderless custom title bar with drag, minimize, maximize / restore
 - Scrollable file queue sidebar with per-file single-convert button
 - Timestamped conversion log panel
 - Progress bar with percentage label
