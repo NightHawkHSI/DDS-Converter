@@ -16,5 +16,9 @@
     "fail": "#ff4444",
     "info": "#0096ff"
   },
-  "show_info_on_start": true
+  "show_info_on_start": true,
+  "output_type": "DDS",
+  "jpeg_quality": 90,
+  "input_folder": "D:/Fivem/Chains/GGG Chain/Textures",
+  "output_folder": "D:/Fivem/Chains/GGG Chain/DDS"
 }

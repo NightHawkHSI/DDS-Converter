@@ -115,3 +115,44 @@ Img To DDS/
 
 Free to use, modify, and share — do whatever you want with it.  
 **Just give credit: made by DiccChops.**
+
+---
+
+## Changelog
+
+### v4.0
+- App now launches fullscreen by default
+- Maximize/restore button correctly reflects window state on startup
+- Info window now opens centred over the main window instead of top-left
+- Startup flash (white flicker) eliminated — window fades in invisibly during Win32 taskbar registration
+- **?? OPEN** button added next to Output Folder to instantly open it in Explorer
+- JPG Quality control is now hidden and only appears when JPG output is selected, with inline hint text (`100=lossless  95=high  85=web  75=small  60=low`)
+- File queue `?` convert button is now always visible regardless of filename length (pack order fix)
+
+### v3.0
+- Added 7 output formats: DDS, PNG, JPG, TGA, BMP, WebP, SVG
+- SVG output embeds the raster image as base64 PNG inside an SVG wrapper
+- JPG quality spinbox added
+- Per-file tint store — each file remembers its own colour, intensity, and blend mode
+- **Apply to All** tint button
+- 5 blend modes: Multiply, Screen, Overlay, Add, Tint (Lerp)
+- Quick-pick colour swatches + custom colour picker
+- Live Before / After preview panels with tint preview
+- 4 built-in themes: Dark, Light, Matrix, DarkBlueGrey
+- Full custom colour picker per UI element
+- Settings saved to `dds_settings.json` (theme, folders, output type, quality)
+- Crash log written to `dds_crash.log` next to the app
+
+### v2.0
+- Borderless custom title bar with drag, minimize, maximize/restore
+- Scrollable file queue sidebar with per-file single-convert button
+- Timestamped conversion log panel
+- Progress bar with percentage label
+- Stats bar: Total / Done / Fail / Tinted counters
+- Win32 taskbar button registration for borderless window
+
+### v1.0
+- Initial release
+- Batch DDS conversion via `texconv.exe`
+- DXT1, DXT3, DXT5 format support
+- Mipmap generation toggle
