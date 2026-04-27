@@ -1,151 +1,89 @@
-﻿# DDS Converter
+# Texture Pipeline Manager � v5.0
 > by DiccChops
 
-A lightweight borderless GUI tool for converting game textures to **DirectX DDS format** on Windows.  
-Wraps Microsoft's `texconv.exe` from the [DirectXTex](https://github.com/microsoft/DirectXTex) library.
+Professional texture pipeline manager for modders and technical artists. Designed for reliable batch processing, per-file tint/specular baking, and integration with external tooling such as Microsoft's `texconv` (DirectXTex).
 
----
+This release (v5.0) focuses on workflow and scale: project files, folder templates, export manifests, parallelized conversion, and optional GPU-accelerated conversion via a compatible `texconv_gpu.exe` binary.
 
-## Features
+## Key capabilities
 
-- **Batch conversion** — convert an entire folder of images in one click
-- **Single file conversion** — convert just one file straight from the queue
-- **7 output formats** — DDS, PNG, JPG, TGA, BMP, WebP, SVG
-- **7 DDS formats** — DXT1, DXT3, DXT5, BC4\_UNORM, BC5\_UNORM, BC7\_UNORM, R8G8B8A8\_UNORM
-- **Mipmap generation** — optional full mipmap chain for in-game use
-- **Tint / Specular baking** — bake a colour tint into the texture before conversion
-  - 5 blend modes: Multiply, Screen, Overlay, Add, Tint (Lerp)
-  - Per-file tint or Apply to All
-- **Live preview** — side-by-side Before / After panels with real-time tint preview
-- **Conversion log** — timestamped output for every file processed
-- **4 built-in themes** — Dark, Light, Matrix, DarkBlueGrey — fully customisable per colour
-- **Persistent settings** — theme, folders, and preferences saved to `dds_settings.json`
+- Project system: save and load job configurations (folders, presets, per-file tints).
+- Folder templates: quick project scaffolds for `Gear`, `UI`, `Vehicles`, `Weapons`.
+- Export manifests: per-run JSON summary of converted files (format, size, status).
+- Multi-threaded conversion with chunking and configurable worker count.
+- Optional GPU-enabled conversion (place `texconv_gpu.exe` beside the app).
+- Per-file tint/specular baking, live Before/After preview, and structured conversion logs (`dds_conversion.log`).
 
----
+## Why use this tool
 
-## Supported Input Formats
-
-| Format | Extension |
-|--------|-----------|
-| PNG    | `.png`    |
-| JPEG   | `.jpg` `.jpeg` |
-| Targa  | `.tga`    |
-| Bitmap | `.bmp`    |
-
-**Output:** DirectX DDS — ready to drop into a game engine or 3D application
-
----
+- Built for modders and small studios: manage texture conversion jobs, standardize outputs, and generate machine-readable manifests for downstream pipelines.
+- Practical defaults (Auto DDS selection, PBR naming heuristics) plus advanced controls (format overrides, versioned outputs).
+- Lightweight source (single-file) for inspection and extension, or packaged as a standalone Windows executable.
 
 ## Requirements
 
-| Requirement | Notes |
-|-------------|-------|
-| Windows 10 / 11 | Tested on both |
-| `texconv.exe` | Must be placed in the **same folder** as `DDS Converter.exe` |
-| Python 3.x | Only needed if running from source |
-| Pillow | Only needed if running from source — `pip install Pillow` |
+- Windows 10 / 11 (Win32 features used)
+- `texconv.exe` (DirectXTex) � required for DDS output. For GPU acceleration, provide a compatible `texconv_gpu.exe` binary and enable GPU mode in the UI.
+- Python 3.x + Pillow to run from source (or use the standalone executable built from this repo)
 
----
+## Quick start
 
-## Download
+1. Place `texconv.exe` (or `texconv_gpu.exe`) in the same folder as the app.
+2. Launch the app, apply a template or create a new project, set input/output folders.
+3. Optionally save a project to reuse settings.
+4. Configure `WORKERS` (1..16) and enable GPU if available, then START CONVERSION.
 
-📦 **Go to the [Releases](../../releases) page and download the latest zip.**
+## Projects & templates
 
-Unzip it — everything is inside, ready to run. No install needed.
+- Projects save the full job state as JSON (folders, preset, format, tints). Use SAVE / LOAD PROJECT in the toolbar.
+- Templates create `projects/<template>_input` and `projects/<template>_output` under the app folder to bootstrap common workflows.
 
-> ⚠️ `texconv.exe` is **not** included in the zip (Microsoft redistribution restriction).  
-> Download it separately and drop it in the same folder as `DDS Converter.exe`:  
-> 🔗 https://github.com/microsoft/DirectXTex/releases
+## Export manifest
 
----
+- Each conversion run writes `export_manifest_YYYYMMDD_HHMMSS.json` into the output folder. Manifest entries include `file`, `status` (OK/SKIP/FAIL), `format`, `reason`, and `size` � suitable for automated importers or asset catalogs.
 
-## Getting Started
+## Performance and scaling
 
-1. Download the latest zip from [Releases](../../releases)
-2. Unzip anywhere
-3. Download `texconv.exe` from the link above and place it in the unzipped folder
-4. Double-click `DDS Converter.exe` — no install, no Python needed
+- Increase `WORKERS` to parallelize conversions across CPU cores for large batches. The app uses chunking to reduce contention and memory pressure.
+- Enable GPU if you have a compatible `texconv_gpu.exe` build for hardware-accelerated block compression.
 
-> **Running from source?**
-> ```bash
-> pip install Pillow
-> py DDS.py
-> ```
+## Supported Input / Output formats
 
----
+Supported input: `.png`, `.jpg`, `.jpeg`, `.tga`, `.bmp`
 
-## What's in the Release zip
+Output formats: `DDS`, `PNG`, `JPG`, `TGA`, `BMP`, `WebP`, `SVG`.
 
-```
-DDS Converter/
-├── DDS Converter.exe    # Standalone app — no Python required
-├── info.txt             # In-app help content
-├── DDSIcon.png          # App icon
-├── README.txt           # Quick-start instructions
-└── texconv.exe          # ⚠️ NOT included — download separately (link above)
-```
+When outputting `DDS`, formats supported include: `DXT1`, `DXT3`, `DXT5`, `BC4_UNORM`, `BC5_UNORM`, `BC7_UNORM`, `R8G8B8A8_UNORM` (UI/Modern choices exposed in the UI).
 
-> Source code (`DDS.py`, `build.bat`, etc.) lives only in this repository.  
-> The repo contains no binaries — everything distributable is attached to a Release.
+## Files of interest
 
----
+- `DDS.py` � main application source (inspect or run directly with Python)
+- `projects/` � sample templates and saved project JSON files
+- `dds_conversion.log` � machine-friendly JSONL per-file log (appends during conversion)
+- `export_manifest_*.json` � per-run manifest written into the output folder
+- `dds_crash.log` � crash diagnostics
 
-## DDS Format Guide
+## Security & redistribution
 
-| Format | Alpha | Best For |
-|--------|-------|----------|
-| DXT1 | 1-bit / none | Opaque textures, smallest file size |
-| DXT3 | Explicit | Sharp alpha edges |
-| DXT5 | Smooth | Gradients, most common choice |
-| BC4\_UNORM | — | Single-channel greyscale (R only) |
-| BC5\_UNORM | — | Two-channel (R+G), normal maps |
-| BC7\_UNORM | Full | High-quality RGBA, better than DXT5 |
-| R8G8B8A8\_UNORM | Full | Uncompressed, no quality loss |
+- `texconv.exe` is not redistributed. Download it from Microsoft's DirectXTex releases and place it beside the app due to redistribution licensing.
 
----
+## Support and contribution
 
-## License
-
-Free to use, modify, and share — do whatever you want with it.  
-**Just give credit: made by DiccChops.**
-
----
+Open issues and pull requests are welcome. Describe the target pipeline if you want custom template presets, CI-friendly manifest formats, or other integrations.
 
 ## Changelog
 
+### v5.0
+- Project system: save/load job configurations (folders, presets, per-file tints)
+- Folder templates for Gear, UI, Vehicles, Weapons
+- Export manifest JSON written to output folder per run
+- Multi-threaded conversion with configurable worker count and chunking
+- GPU toggle to use `texconv_gpu.exe` when present
+- Structured per-file logging (JSONL) and improved error reasons
+
 ### v4.0
-- App now launches fullscreen by default
-- Maximize / restore button correctly reflects window state on startup
-- Info window now opens centred over the main window instead of top-left
-- Startup flash (white flicker) eliminated — window fades in invisibly during Win32 taskbar registration
-- **📂 OPEN** button added next to Output Folder to instantly open it in Explorer
-- JPG Quality control is now hidden and only appears when JPG output is selected, with inline hint text (`100=lossless  95=high  85=web  75=small  60=low`)
-- File queue ▶ convert button is now always visible regardless of filename length
+- App launched fullscreen by default; improved restore/maximize behaviour
+- Info window centred; startup visual flicker eliminated
+- Output folder OPEN button; improved JPG quality UI
 
-### v3.0
-- Added 7 output formats: DDS, PNG, JPG, TGA, BMP, WebP, SVG
-- SVG output embeds the raster image as base64 PNG inside an SVG wrapper
-- JPG quality spinbox added
-- Per-file tint store — each file remembers its own colour, intensity, and blend mode
-- **Apply to All** tint button
-- 5 blend modes: Multiply, Screen, Overlay, Add, Tint (Lerp)
-- Quick-pick colour swatches + custom colour picker
-- Live Before / After preview panels with tint preview
-- 4 built-in themes: Dark, Light, Matrix, DarkBlueGrey
-- Full custom colour picker per UI element
-- Settings saved to `dds_settings.json` (theme, folders, output type, quality)
-- Crash log written to `dds_crash.log` next to the app
-
-### v2.0
-- Borderless custom title bar with drag, minimize, maximize / restore
-- Scrollable file queue sidebar with per-file single-convert button
-- Timestamped conversion log panel
-- Progress bar with percentage label
-- Stats bar: Total / Done / Fail / Tinted counters
-- Win32 taskbar button registration for borderless window
-
-### v1.0
-- Initial release
-- Batch DDS conversion via `texconv.exe`
-- DXT1, DXT3, DXT5 format support
-- Mipmap generation toggle
+For full history, inspect the repository tags and commit log.
