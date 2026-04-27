@@ -1,4 +1,4 @@
-# Texture Pipeline Manager — v5.0
+# Texture Pipeline Manager â€” v5.0
 > by DiccChops
 
 Professional texture pipeline manager for modders and technical artists. Designed for reliable batch processing, per-file tint/specular baking, and integration with external tooling such as Microsoft's `texconv` (DirectXTex).
@@ -23,7 +23,8 @@ This release (v5.0) focuses on workflow and scale: project files, folder templat
 ## Requirements
 
 - Windows 10 / 11 (Win32 features used)
-- `texconv.exe` (DirectXTex) — required for DDS output. For GPU acceleration, provide a compatible `texconv_gpu.exe` binary and enable GPU mode in the UI.
+- `texconv.exe` (DirectXTex) â€” required for DDS output. For GPU acceleration, provide a compatible `texconv_gpu.exe` binary and enable GPU mode in the UI.
+https://github.com/microsoft/DirectXTex?utm_source=chatgpt.com
 - Python 3.x + Pillow to run from source (or use the standalone executable built from this repo)
 
 ## Quick start
@@ -40,7 +41,7 @@ This release (v5.0) focuses on workflow and scale: project files, folder templat
 
 ## Export manifest
 
-- Each conversion run writes `export_manifest_YYYYMMDD_HHMMSS.json` into the output folder. Manifest entries include `file`, `status` (OK/SKIP/FAIL), `format`, `reason`, and `size` — suitable for automated importers or asset catalogs.
+- Each conversion run writes `export_manifest_YYYYMMDD_HHMMSS.json` into the output folder. Manifest entries include `file`, `status` (OK/SKIP/FAIL), `format`, `reason`, and `size` â€” suitable for automated importers or asset catalogs.
 
 ## Performance and scaling
 
@@ -57,11 +58,11 @@ When outputting `DDS`, formats supported include: `DXT1`, `DXT3`, `DXT5`, `BC4_U
 
 ## Files of interest
 
-- `DDS.py` — main application source (inspect or run directly with Python)
-- `projects/` — sample templates and saved project JSON files
-- `dds_conversion.log` — machine-friendly JSONL per-file log (appends during conversion)
-- `export_manifest_*.json` — per-run manifest written into the output folder
-- `dds_crash.log` — crash diagnostics
+- `DDS.py` â€” main application source (inspect or run directly with Python)
+- `projects/` â€” sample templates and saved project JSON files
+- `dds_conversion.log` â€” machine-friendly JSONL per-file log (appends during conversion)
+- `export_manifest_*.json` â€” per-run manifest written into the output folder
+- `dds_crash.log` â€” crash diagnostics
 
 ## Security & redistribution
 
