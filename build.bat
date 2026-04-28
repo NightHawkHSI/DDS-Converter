@@ -4,7 +4,7 @@ setlocal
 set SCRIPT=%~dp0DDS.py
 set ICON=%~dp0DDSIcon.ico
 set BUILD_ROOT=%~dp0Build
-set RELEASE_DIR=%BUILD_ROOT%\Release\DDS Converter
+set RELEASE_DIR=%BUILD_ROOT%\Release\TexForge
 set GITHUB_DIR=%BUILD_ROOT%\GitHub
 set LOG=%~dp0build_error.log
 
@@ -19,7 +19,7 @@ echo. >> "%LOG%"
 
 echo.
 echo  ========================================
-echo   DDS Converter ^— Build Script
+  echo   TexForge ^-- Build Script
 echo  ========================================
 echo.
 
@@ -61,8 +61,8 @@ echo  [*] Cleaning previous output...
 if exist "%BUILD_ROOT%"  rmdir /s /q "%BUILD_ROOT%"
 if exist "%PYI_WORK%"    rmdir /s /q "%PYI_WORK%"
 if exist "%PYI_DIST%"    rmdir /s /q "%PYI_DIST%"
-if exist "%~dp0DDS.spec"              del /q "%~dp0DDS.spec"
-if exist "%~dp0DDS Converter.spec"    del /q "%~dp0DDS Converter.spec"
+if exist "%~dp0DDS.spec"        del /q "%~dp0DDS.spec"
+if exist "%~dp0TexForge.spec"   del /q "%~dp0TexForge.spec"
 echo [OK] Clean done. >> "%LOG%"
 
 :: ── Auto-generate DDSIcon.ico if missing ─────────────────────────
@@ -82,7 +82,7 @@ set EXCLUDES=--exclude-module pygame --exclude-module numpy --exclude-module sci
 if exist "%ICON%" (
     py -m PyInstaller --noconfirm --onefile --windowed ^
         --icon="%ICON%" ^
-        --name="DDS Converter" ^
+        --name="TexForge" ^
         --distpath="%PYI_DIST%" ^
         --workpath="%PYI_WORK%" ^
         --collect-all PIL ^
@@ -90,7 +90,7 @@ if exist "%ICON%" (
         "%SCRIPT%"
 ) else (
     py -m PyInstaller --noconfirm --onefile --windowed ^
-        --name="DDS Converter" ^
+        --name="TexForge" ^
         --distpath="%PYI_DIST%" ^
         --workpath="%PYI_WORK%" ^
         --collect-all PIL ^
@@ -100,7 +100,7 @@ if exist "%ICON%" (
 
 set PYINST_ERR=%ERRORLEVEL%
 
-if not exist "%PYI_DIST%\DDS Converter.exe" (
+if not exist "%PYI_DIST%\TexForge.exe" (
     echo  [ERROR] PyInstaller failed ^(exit %PYINST_ERR%^) - EXE not produced.
     echo [FAIL] EXE not found after PyInstaller run. >> "%LOG%"
     pause & exit /b 1
@@ -114,25 +114,25 @@ echo.
 echo  [*] Building Release folder...
 mkdir "%RELEASE_DIR%"
 
-copy /y "%PYI_DIST%\DDS Converter.exe" "%RELEASE_DIR%\DDS Converter.exe" >> "%LOG%" 2>&1
+copy /y "%PYI_DIST%\TexForge.exe" "%RELEASE_DIR%\TexForge.exe" >> "%LOG%" 2>&1
 if errorlevel 1 ( echo [FAIL] Could not copy EXE to Release. >> "%LOG%" )
 if exist "%~dp0info.txt"    copy /y "%~dp0info.txt"    "%RELEASE_DIR%\info.txt"    >> "%LOG%" 2>&1
 if exist "%~dp0DDSIcon.png" copy /y "%~dp0DDSIcon.png" "%RELEASE_DIR%\DDSIcon.png" >> "%LOG%" 2>&1
 
 (
-    echo DDS Converter - by DiccChops
+    echo TexForge - by DiccChops
     echo ==============================
     echo.
     echo HOW TO RUN
-    echo   Just double-click "DDS Converter.exe"
+    echo   Just double-click "TexForge.exe"
     echo.
-    echo REQUIREMENT - texconv.exe
-    echo   texconv.exe is NOT included here ^(Microsoft's tool^).
+    echo REQUIREMENT - texconv.exe  ^(DDS output only^)
+    echo   texconv.exe is NOT included ^(Microsoft's tool^).
     echo   Download it and place it in THIS folder:
     echo   https://github.com/microsoft/DirectXTex/releases
     echo.
-    echo   Without texconv.exe the app will show an error when
-    echo   you try to convert to DDS. PNG/JPG/etc still work.
+    echo   Without texconv.exe you can still convert to
+    echo   PNG, JPG, TGA, BMP, WebP, and SVG.
 ) > "%RELEASE_DIR%\README.txt"
 
 echo  [*] Release folder ready: %RELEASE_DIR%
@@ -159,7 +159,7 @@ echo.
 echo  [*] Cleaning up PyInstaller temp files...
 rmdir /s /q "%PYI_WORK%"
 rmdir /s /q "%PYI_DIST%"
-if exist "%~dp0DDS Converter.spec" del /q "%~dp0DDS Converter.spec" 2>nul
+if exist "%~dp0TexForge.spec" del /q "%~dp0TexForge.spec" 2>nul
 echo [OK] Cleanup done. >> "%LOG%"
 echo. >> "%LOG%"
 echo Build finished successfully: %DATE% %TIME% >> "%LOG%"
@@ -169,8 +169,8 @@ echo.
 echo  ========================================
 echo   DONE!
 echo.
-echo   Build\Release\DDS Converter\  ^<-- zip this for GitHub Releases
-echo   Build\GitHub\                ^<-- push these files to the repo
+echo   Build\Release\TexForge\           ^<-- zip this for GitHub Releases
+   echo   Build\GitHub\                ^<-- push these files to the repo
 echo  ========================================
 echo.
 

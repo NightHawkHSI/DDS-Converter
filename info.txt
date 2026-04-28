@@ -1,20 +1,23 @@
-DDS Converter — by DiccChops
-## DDS Converter — by DiccChops
+TexForge — by DiccChops
+## TexForge — by DiccChops
 ===================================================================
 
 
 # WHAT IT DOES
 
-Converts image files (PNG, JPG, JPEG, TGA, BMP) into DirectX DDS
-format using Microsoft's texconv.exe from the DirectXTex library.
-DDS files are widely used in games and real-time 3D applications
-for GPU-compressed textures with optional mipmap chains.
+Converts image files (PNG, JPG, JPEG, TGA, BMP) into multiple output
+formats: DDS, PNG, JPG, TGA, BMP, WebP, and SVG.
+For DDS output, Microsoft's texconv.exe (DirectXTex) is used to
+produce GPU-compressed textures with optional mipmap chains.
+All other formats are handled directly via Pillow — no extra tools needed.
 
 
 # REQUIREMENTS
 
-! texconv.exe — place it in the same folder as DDS.py
+! texconv.exe — required for DDS output only
+! Place it in the same folder as DDS.py / TexForge.exe
 ~ Download from: https://github.com/microsoft/DirectXTex/releases
+~ PNG, JPG, TGA, BMP, WebP, SVG output needs NO extra tools.
 
 
 # HOW TO USE
@@ -23,9 +26,19 @@ for GPU-compressed textures with optional mipmap chains.
    Select the folder containing your source images.
 
 + 2. OUTPUT FOLDER
-   Select where the converted DDS files will be saved.
+   Select where the converted files will be saved.
 
-+ 3. FORMAT  —  Choose the DDS compression format:
++ 3. OUTPUT TYPE  —  Choose the target format:
+
+   DDS     DirectX GPU-compressed texture (game engines).
+   PNG     Lossless, full alpha support.
+   JPG     Lossy, small file size, no alpha.
+   TGA     Lossless with alpha, older game pipeline standard.
+   BMP     Uncompressed bitmap.
+   WebP    Modern lossy/lossless, excellent compression.
+   SVG     Raster image embedded as base64 inside an SVG wrapper.
+
++ 4. DDS FORMAT  —  When output is DDS, choose the codec:
 
    DXT1            Opaque / 1-bit alpha. Smallest file size.
    DXT3            Explicit alpha. Good for sharp alpha edges.
@@ -35,15 +48,19 @@ for GPU-compressed textures with optional mipmap chains.
    BC7_UNORM       High-quality RGBA. Better than DXT5, slightly larger.
    R8G8B8A8_UNORM  Uncompressed RGBA. No quality loss, largest size.
 
-+ 4. MIPMAPS
-   Tick to generate a full mipmap chain (recommended
-   for most in-game textures).
++ 5. PROFILE
+   Pick a game-engine preset to auto-configure DDS mode, codec,
+   and mipmap settings for common targets.
 
-+ 5. CONVERT ALL
++ 6. MIPMAPS
+   Tick to generate a full mipmap chain (recommended
+   for most in-game textures). Disable for UI / 2D sprites.
+
++ 7. CONVERT ALL
    Click ▶ START CONVERSION to process every file in
    the input folder at once.
 
-+ 6. CONVERT ONE
++ 8. CONVERT ONE
    Click the small ▶ button next to any file in the
    queue to convert only that file.
 
@@ -51,9 +68,9 @@ for GPU-compressed textures with optional mipmap chains.
 # TINT / SPECULAR COLOUR
 
 Select an image from the FILE QUEUE, then pick a tint colour and
-set the intensity. The tint is baked into the image before it is
-sent to texconv — useful for colour-shifted variants, specular
-colour masks, or team-colour textures.
+set the intensity. The tint is baked into the image before conversion —
+useful for colour-shifted variants, specular colour masks, or
+team-colour textures.
 
    PRESETS       Quick-pick common colours with one click.
    ⊕ CUSTOM      Open a colour picker for any colour you need.
@@ -70,7 +87,16 @@ colour masks, or team-colour textures.
    CLEAR TINT    Remove the tint from the selected file only.
 
 ~ The BEFORE panel shows a live preview of the tinted source image.
-~ The AFTER panel shows the last converted DDS for that file.
+~ The AFTER panel shows the last converted output for that file.
+
+
+# PROJECTS & TEMPLATES
+
++  SAVE PROJECT  — saves all folders, settings, tints, and per-file
+   format overrides to a JSON file you can reload later.
++  LOAD PROJECT  — restores a previously saved session.
++  TEMPLATE      — quick-create input/output folder pairs with a
+   matching preset for Gear, UI, Vehicles, or Weapons assets.
 
 
 # THEMES & COLOURS
@@ -94,5 +120,6 @@ Click ⚙ in the title bar to open Settings.
 
 
 ===================================================================
-~ DDS Converter v3.0  •  Built with Python + Pillow + texconv
+~ TexForge v6.0  •  Built with Python + Pillow + texconv
 ===================================================================
+

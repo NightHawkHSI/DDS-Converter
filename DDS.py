@@ -3,7 +3,7 @@ import sys, traceback, os
 try:
     import faulthandler
     try:
-        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd(), 'dds_crash.log')
+        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd(), 'texforge_crash.log')
         faulthandler.enable(file=open(log_path, 'a'))
     except Exception:
         faulthandler.enable()
@@ -25,7 +25,7 @@ except Exception:
     try:
         # best-effort write to crash log next to this script
         app_dir = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
-        crash_log = os.path.join(app_dir, "dds_crash.log")
+        crash_log = os.path.join(app_dir, "texforge_crash.log")
         with open(crash_log, "a", encoding="utf-8") as f:
             f.write(f"\n{'='*60}\n{tb}")
     except Exception:
@@ -109,9 +109,9 @@ PRESETS = {
     "🧊 PBR materials (metal/rough/normal maps)": {"dds_mode": "Modern (DX10/DXGI)", "format": "BC7_UNORM", "mips": True, "pbr_rules": True},
 }
 
-SETTINGS_FILE = os.path.join(APP_DIR, "dds_settings.json")
-CRASH_LOG     = os.path.join(APP_DIR, "dds_crash.log")
-STRUCT_LOG    = os.path.join(APP_DIR, "dds_conversion.log")
+SETTINGS_FILE = os.path.join(APP_DIR, "texforge_settings.json")
+CRASH_LOG     = os.path.join(APP_DIR, "texforge_crash.log")
+STRUCT_LOG    = os.path.join(APP_DIR, "texforge_conversion.log")
 PROJECTS_DIR  = os.path.join(APP_DIR, "projects")
 
 # Folder templates for quick project setup
@@ -238,6 +238,53 @@ def save_as_svg(img: Image.Image, dst_path: str):
 
 
 # =========================
+# TOOLTIP
+# =========================
+class _Tooltip:
+    """Lightweight delayed hover tooltip for any tkinter widget."""
+    _DELAY_MS = 480
+
+    def __init__(self, widget, text: str):
+        self._widget = widget
+        self._text   = text
+        self._win    = None
+        self._after  = None
+        widget.bind("<Enter>",       self._schedule, add="+")
+        widget.bind("<Leave>",       self._cancel,   add="+")
+        widget.bind("<ButtonPress>", self._cancel,   add="+")
+
+    def _schedule(self, event=None):
+        self._cancel()
+        self._after = self._widget.after(self._DELAY_MS, self._show)
+
+    def _cancel(self, event=None):
+        if self._after:
+            self._widget.after_cancel(self._after)
+            self._after = None
+        if self._win:
+            self._win.destroy()
+            self._win = None
+
+    def _show(self):
+        if self._win:
+            return
+        try:
+            x = self._widget.winfo_rootx() + 16
+            y = self._widget.winfo_rooty() + self._widget.winfo_height() + 4
+            self._win = tw = tk.Toplevel(self._widget)
+            tw.overrideredirect(True)
+            tw.attributes("-topmost", True)
+            tw.geometry(f"+{x}+{y}")
+            tk.Label(tw, text=self._text, justify="left",
+                     bg=COLORS["panel"], fg=COLORS["text"],
+                     font=("Segoe UI", 8), relief="flat",
+                     padx=9, pady=5, wraplength=320).pack()
+            tw.config(highlightbackground=COLORS["border"], highlightthickness=1)
+        except Exception:
+            self._win = None
+
+
+# =========================
 # APP
 # =========================
 class DDSConverterApp:
@@ -288,6 +335,9 @@ class DDSConverterApp:
 
         # tint per-file store
         self._file_tints: dict = {}          # fname → {color, intensity, mode}
+        self._file_formats: dict = {}        # fname → DDS format override ("" = global)
+        self._rename_prefix = tk.StringVar(value="")
+        self._rename_suffix = tk.StringVar(value="")
         self._tint_color     = tk.StringVar(value="")
         self._tint_intensity = tk.DoubleVar(value=40.0)
         self._tint_mode      = tk.StringVar(value="Multiply")
@@ -524,7 +574,7 @@ class DDSConverterApp:
         # Custom title bar
         hdr = tk.Frame(win, bg=COLORS["panel"])
         hdr.pack(fill="x")
-        tk.Label(hdr, text="ℹ  DDS CONVERTER — INFO",
+        tk.Label(hdr, text="ℹ  TexForge — INFO",
                  fg=COLORS["info"], bg=COLORS["panel"],
                  font=("Consolas", 11, "bold")).pack(side="left", padx=14, pady=10)
         tk.Button(hdr, text=" ✕ ", bg=COLORS["panel"], fg=COLORS["text"],
@@ -630,16 +680,18 @@ class DDSConverterApp:
             tk.Label(tb, image=self._icon_photo_small,
                      bg=COLORS["panel"]).pack(side="left", padx=(10, 4), pady=9)
 
-        tk.Label(tb, text="DDS by DiccChops", fg=COLORS["accent"],
+        tk.Label(tb, text="TexForge by DiccChops", fg=COLORS["accent"],
                  bg=COLORS["panel"], font=("Consolas", 11, "bold")).pack(side="left", padx=(2, 6))
-        tk.Label(tb, text="[ DirectXTex / texconv.exe ]",
+        tk.Label(tb, text="[ multi-format texture pipeline ]",
                  fg=COLORS["subtext"], bg=COLORS["panel"], font=FONT_MONO).pack(side="left")
 
-        tk.Button(tb, text=" ✕ ", bg=COLORS["panel"], fg=COLORS["text"],
+        _close_btn = tk.Button(tb, text=" ✕ ", bg=COLORS["panel"], fg=COLORS["text"],
                   relief="flat", font=("Segoe UI", 10, "bold"),
                   activebackground=COLORS["error"], activeforeground="#fff",
                   cursor="hand2", bd=0,
-                  command=self.root.destroy).pack(side="right")
+                  command=self.root.destroy)
+        _close_btn.pack(side="right")
+        self._tip(_close_btn, "Close the application")
         self._max_btn = tk.Button(tb, text=" ❐ " if self._maximized else " □ ",
                   bg=COLORS["panel"], fg=COLORS["text"],
                   relief="flat", font=("Segoe UI", 10),
@@ -647,26 +699,32 @@ class DDSConverterApp:
                   cursor="hand2", bd=0,
                   command=self._toggle_maximize)
         self._max_btn.pack(side="right")
-        tk.Button(tb, text=" ─ ", bg=COLORS["panel"], fg=COLORS["text"],
+        self._tip(self._max_btn, "Maximize / restore window")
+        _min_btn = tk.Button(tb, text=" ─ ", bg=COLORS["panel"], fg=COLORS["text"],
                   relief="flat", font=("Segoe UI", 10),
                   activebackground=COLORS["border"], activeforeground=COLORS["text"],
                   cursor="hand2", bd=0,
-                  command=self._minimize).pack(side="right")
+                  command=self._minimize)
+        _min_btn.pack(side="right")
+        self._tip(_min_btn, "Minimize to taskbar")
 
-        tk.Label(tb, text=" v5.0 ", fg="#000", bg=COLORS["accent"],
+        tk.Label(tb, text=" v7.0 ", fg="#000", bg=COLORS["accent"],
                  font=("Consolas", 7, "bold")).pack(side="right", padx=(0, 6), pady=9)
 
-        tk.Button(tb, text=" ℹ ", bg=COLORS["info"], fg="#fff",
+        _info_btn = tk.Button(tb, text=" ℹ ", bg=COLORS["info"], fg="#fff",
                   relief="flat", font=("Segoe UI", 10, "bold"),
                   activebackground=COLORS["accent2"], activeforeground="#fff",
                   cursor="hand2", bd=0,
-                  command=self._open_info_window).pack(side="right", padx=(0, 2))
-
-        tk.Button(tb, text=" ⚙ ", bg=COLORS["panel"], fg=COLORS["subtext"],
+                  command=self._open_info_window)
+        _info_btn.pack(side="right", padx=(0, 2))
+        self._tip(_info_btn, "Open the help / info window")
+        _cfg_btn = tk.Button(tb, text=" ⚙ ", bg=COLORS["panel"], fg=COLORS["subtext"],
                   relief="flat", font=("Segoe UI", 10),
                   activebackground=COLORS["border"], activeforeground=COLORS["accent"],
                   cursor="hand2", bd=0,
-                  command=self._open_settings).pack(side="right", padx=(0, 4))
+                  command=self._open_settings)
+        _cfg_btn.pack(side="right", padx=(0, 4))
+        self._tip(_cfg_btn, "Open theme and colour settings")
 
         for w in [tb] + [c for c in tb.winfo_children() if isinstance(c, tk.Label)]:
             w.bind("<ButtonPress-1>",   self._titlebar_press)
@@ -757,6 +815,10 @@ class DDSConverterApp:
             if "use_gpu" in data:
                 try: self._use_gpu.set(bool(data.get("use_gpu", False)))
                 except Exception: pass
+            if "rename_prefix" in data:
+                self._rename_prefix.set(data.get("rename_prefix", ""))
+            if "rename_suffix" in data:
+                self._rename_suffix.set(data.get("rename_suffix", ""))
         except Exception:
             pass
 
@@ -771,6 +833,8 @@ class DDSConverterApp:
                 "jpeg_quality": self.jpeg_quality.get(),
                 "workers": int(self._workers.get()),
                 "use_gpu": bool(self._use_gpu.get()),
+                "rename_prefix": self._rename_prefix.get(),
+                "rename_suffix": self._rename_suffix.get(),
                 "input_folder": self.input_folder.get(),
                 "output_folder": self.output_folder.get()}
         try:
@@ -917,7 +981,7 @@ class DDSConverterApp:
         self._build_titlebar()
 
         # TOOLBAR
-        toolbar = tk.Frame(self.root, bg=COLORS["bg"], pady=6)
+        toolbar = tk.Frame(self.root, bg=COLORS["bg"], pady=4)
         toolbar.pack(fill="x", padx=14)
         _folder_rows = [
             ("INPUT FOLDER",  self.input_folder,  getattr(self, 'pick_input', None),  None,
@@ -934,20 +998,29 @@ class DDSConverterApp:
                            font=FONT_UI, bd=4)
             ent.pack(side="left", fill="x", expand=True, padx=6)
             self._setup_placeholder(ent, var, hint)
-            self._btn(row, "BROWSE", cmd, COLORS["accent2"]).pack(side="left")
+            _br = self._btn(row, "BROWSE", cmd, COLORS["accent2"])
+            _br.pack(side="left")
+            self._tip(_br, f"Browse for the {lbl.lower().replace(' folder', '')} folder")
             if open_cmd:
-                self._btn(row, "📂 OPEN", open_cmd, COLORS["border"], fg=COLORS["text"]).pack(side="left", padx=(4, 0))
+                _op = self._btn(row, "📂 OPEN", open_cmd, COLORS["border"], fg=COLORS["text"])
+                _op.pack(side="left", padx=(4, 0))
+                self._tip(_op, "Open the output folder in your file explorer")
 
         row2 = tk.Frame(toolbar, bg=COLORS["bg"]); row2.pack(fill="x", pady=4)
         tk.Label(row2, text="OUTPUT TYPE", fg=COLORS["subtext"], bg=COLORS["bg"],
                  font=FONT_TITLE, width=13, anchor="e").pack(side="left")
-        ttk.Combobox(row2, textvariable=self.output_type, state="readonly", font=FONT_UI, width=8,
-                     values=OUTPUT_FORMATS).pack(side="left", padx=6)
+        _ot_cb = ttk.Combobox(row2, textvariable=self.output_type, state="readonly", font=FONT_UI, width=8,
+                              values=OUTPUT_FORMATS)
+        _ot_cb.pack(side="left", padx=6)
+        self._tip(_ot_cb, "Output file format. DDS = DirectX texture (requires texconv.exe). "
+                          "PNG/JPG/TGA/BMP/WebP = standard images. SVG = raster embedded in SVG wrapper.")
         tk.Label(row2, text="PROFILE", fg=COLORS["subtext"], bg=COLORS["bg"],
                  font=FONT_TITLE).pack(side="left", padx=(8, 0))
         self._preset_cb = ttk.Combobox(row2, textvariable=self.preset, state="readonly",
                                        font=FONT_UI, width=28, values=PRESET_NAMES)
         self._preset_cb.pack(side="left", padx=(6, 0))
+        self._tip(self._preset_cb, "Quick-apply a full preset for the target engine or use case. "
+                                   "Sets DDS mode, format, and mipmap options automatically.")
         def _on_preset_change(*_):
             name = self.preset.get()
             cfg = PRESETS.get(name, {})
@@ -970,10 +1043,16 @@ class DDSConverterApp:
                                                  "Modern (DX10/DXGI)",
                                                  "Auto (detect alpha)"])
         self._dds_mode_cb.pack(side="left", padx=(6, 0))
+        self._tip(self._dds_mode_cb, "DDS header mode.\n"
+                                     "Legacy = DXT1/3/5, compatible with older engines (GTA V, Skyrim).\n"
+                                     "Modern = BC4/5/7 with DX10 header, for Unity/Unreal.\n"
+                                     "Auto = detects alpha per-file and picks DXT1 or DXT5 automatically.")
         # DDS format combobox (values will be updated based on mode)
         self._dds_format_cb = ttk.Combobox(row2, textvariable=self.format, state="readonly",
                                            font=FONT_UI, width=16)
         self._dds_format_cb.pack(side="left", padx=6)
+        self._tip(self._dds_format_cb, "Specific DDS compression codec. Overridden per-file if FILE FMT is set.\n"
+                                       "DXT1=no alpha (smallest), DXT5=alpha, BC7=high quality, BC4/5=greyscale/normals.")
         # initialize formats according to mode
         def _on_dds_mode_change(*_):
             mode = self.dds_mode.get()
@@ -1006,6 +1085,8 @@ class DDSConverterApp:
                        activeforeground=COLORS["accent"], activebackground=COLORS["bg"],
                        font=FONT_UI)
         self._mip_check.pack(side="left", padx=6)
+        self._tip(self._mip_check, "Generate a mipmap chain — pre-scaled versions used at lower detail levels (LOD). "
+                                   "Recommended for 3D game textures. Disable for UI / 2D sprites.")
 
         self._quality_frame = tk.Frame(row2, bg=COLORS["bg"])
         tk.Label(self._quality_frame, text="JPG QUALITY", fg=COLORS["subtext"],
@@ -1025,6 +1106,7 @@ class DDSConverterApp:
         self.start_btn = self._btn(row2, "▶  START CONVERSION",
                                    self.start_thread, COLORS["accent"], fg="#000", padx=14)
         self.start_btn.pack(side="right")
+        self._tip(self.start_btn, "Begin converting all files in the queue with the current settings")
 
         def _on_output_type_change(*_):
             is_dds = self.output_type.get() == "DDS"
@@ -1056,28 +1138,62 @@ class DDSConverterApp:
         self._workers_spin = tk.Spinbox(perf_row, from_=1, to=16, textvariable=self._workers, width=4,
                                         bg=COLORS["input_bg"], fg=COLORS["text"], relief="flat", font=FONT_UI)
         self._workers_spin.pack(side="left", padx=6)
+        self._tip(self._workers_spin, "Number of parallel conversion workers (1–16). "
+                                      "More workers speed up large batches on multi-core CPUs. "
+                                      "Each worker runs texconv.exe as a separate subprocess.")
         self._use_gpu = tk.BooleanVar(value=False)
-        tk.Checkbutton(perf_row, text="Use GPU (texconv_gpu.exe)", variable=self._use_gpu,
+        _gpu_ck = tk.Checkbutton(perf_row, text="Use GPU (texconv_gpu.exe)", variable=self._use_gpu,
                        fg=COLORS["text"], bg=COLORS["bg"], selectcolor=COLORS["input_bg"],
-                       activeforeground=COLORS["accent"], activebackground=COLORS["bg"], font=FONT_UI).pack(side="left", padx=(8,0))
+                       activeforeground=COLORS["accent"], activebackground=COLORS["bg"], font=FONT_UI)
+        _gpu_ck.pack(side="left", padx=(8,0))
+        self._tip(_gpu_ck, "Use texconv_gpu.exe for GPU-accelerated block compression. "
+                           "Requires the GPU-enabled build placed next to the app. Falls back to CPU if not found.")
 
 
         # Project / Template row (modding tool feel)
-        proj_row = tk.Frame(toolbar, bg=COLORS["bg"]) ; proj_row.pack(fill="x", pady=6)
+        proj_row = tk.Frame(toolbar, bg=COLORS["bg"]) ; proj_row.pack(fill="x", pady=2)
         tk.Label(proj_row, text="TEMPLATE", fg=COLORS["subtext"], bg=COLORS["bg"],
                  font=FONT_TITLE, width=13, anchor="e").pack(side="left")
         self._template_var = tk.StringVar(value="(none)")
         tmpl_cb = ttk.Combobox(proj_row, textvariable=self._template_var, state="readonly",
                                values=["(none)"] + list(FOLDER_TEMPLATES.keys()), width=20)
         tmpl_cb.pack(side="left", padx=6)
+        self._tip(tmpl_cb, "Apply a folder template — creates input/output subfolders under the projects directory "
+                           "and applies the matching preset for that asset type.")
         def _on_template_change(*_):
             val = self._template_var.get()
             if val and val != "(none)":
                 self._apply_template(val)
         self._template_var.trace_add("write", _on_template_change)
 
-        self._btn(proj_row, "💾 SAVE PROJECT", self._save_project, COLORS["accent"]).pack(side="right", padx=4)
-        self._btn(proj_row, "📂 LOAD PROJECT", self._load_project, COLORS["border"]).pack(side="right", padx=4)
+        _save_proj = self._btn(proj_row, "💾 SAVE PROJECT", self._save_project, COLORS["accent"])
+        _save_proj.pack(side="right", padx=4)
+        self._tip(_save_proj, "Save current folders, preset, format, tints, and per-file overrides to a JSON project file")
+        _load_proj = self._btn(proj_row, "📂 LOAD PROJECT", self._load_project, COLORS["border"])
+        _load_proj.pack(side="right", padx=4)
+        self._tip(_load_proj, "Load a previously saved project file to restore all settings, folders, and file tints")
+
+        # Output rename rules
+        rename_row = tk.Frame(toolbar, bg=COLORS["bg"]); rename_row.pack(fill="x", pady=2)
+        tk.Label(rename_row, text="RENAME OUT", fg=COLORS["subtext"], bg=COLORS["bg"],
+                 font=FONT_TITLE, width=13, anchor="e").pack(side="left")
+        tk.Label(rename_row, text="Prefix:", fg=COLORS["subtext"], bg=COLORS["bg"],
+                 font=FONT_UI).pack(side="left", padx=(6, 2))
+        _pfx_ent = tk.Entry(rename_row, textvariable=self._rename_prefix,
+                 bg=COLORS["input_bg"], fg=COLORS["text"],
+                 insertbackground=COLORS["accent"], relief="flat", font=FONT_UI, width=14)
+        _pfx_ent.pack(side="left")
+        self._tip(_pfx_ent, "Text prepended to every output filename.\nExample: 'v2_'  →  'v2_texture.dds'")
+        tk.Label(rename_row, text="Suffix:", fg=COLORS["subtext"], bg=COLORS["bg"],
+                 font=FONT_UI).pack(side="left", padx=(12, 2))
+        _sfx_ent = tk.Entry(rename_row, textvariable=self._rename_suffix,
+                 bg=COLORS["input_bg"], fg=COLORS["text"],
+                 insertbackground=COLORS["accent"], relief="flat", font=FONT_UI, width=14)
+        _sfx_ent.pack(side="left")
+        self._tip(_sfx_ent, "Text appended to every output filename before the extension.\nExample: '_hd'  →  'texture_hd.dds'")
+        tk.Label(rename_row, text="added to each output filename before extension",
+                 fg=COLORS["subtext"], bg=COLORS["bg"],
+                 font=("Segoe UI", 7, "italic")).pack(side="left", padx=8)
 
         tk.Frame(self.root, bg=COLORS["border"], height=1).pack(fill="x")
 
@@ -1093,6 +1209,54 @@ class DDSConverterApp:
         self.file_count_lbl = tk.Label(sidebar, text="0 files", fg=COLORS["accent"],
                                        bg=COLORS["sidebar"], font=FONT_MONO, anchor="w")
         self.file_count_lbl.pack(fill="x", padx=10)
+
+        # ── Bottom controls: packed side=bottom FIRST so they are always visible.
+        # ── The canvas frame is packed last and fills whatever space remains.
+        bot = tk.Frame(sidebar, bg=COLORS["sidebar"])
+        bot.pack(side="bottom", fill="x", padx=8, pady=(0, 6))
+
+        _reload_btn = self._btn(bot, "\u21ba  RELOAD", self.load_files, COLORS["border"], fg=COLORS["text"])
+        _reload_btn.pack(fill="x")
+        self._tip(_reload_btn, "Re-scan the input folder and rebuild the file queue from disk")
+
+        tk.Frame(bot, bg=COLORS["border"], height=1).pack(fill="x", pady=(4, 3))
+
+        qf = tk.Frame(bot, bg=COLORS["sidebar"])
+        qf.pack(fill="x")
+        _up_btn = self._btn(qf, "\u2191 MOVE UP", self._move_selected_up, COLORS["border"])
+        _up_btn.pack(fill="x")
+        self._tip(_up_btn, "Move the selected file one position up in the conversion queue")
+        _dn_btn = self._btn(qf, "\u2193 MOVE DOWN", self._move_selected_down, COLORS["border"])
+        _dn_btn.pack(fill="x", pady=(3, 0))
+        self._tip(_dn_btn, "Move the selected file one position down in the conversion queue")
+        _rm_btn = self._btn(qf, "\u2716 REMOVE", self._remove_selected, COLORS["border"], fg=COLORS["warn"])
+        _rm_btn.pack(fill="x", pady=(3, 0))
+        self._tip(_rm_btn, "Remove the selected file from the queue (does not delete the file from disk)")
+
+        tk.Frame(bot, bg=COLORS["border"], height=1).pack(fill="x", pady=(4, 3))
+
+        tk.Label(bot, text="OVERWRITE", fg=COLORS["subtext"], bg=COLORS["sidebar"],
+                 font=FONT_TITLE, anchor="w").pack(fill="x")
+        _ow_cb = ttk.Combobox(bot, textvariable=self.overwrite_mode, state="readonly",
+                     values=["Never", "Always", "Versioned"], width=20)
+        _ow_cb.pack(fill="x", pady=(2, 3))
+        self._tip(_ow_cb, "How to handle output files that already exist.\n"
+                          "Never = skip existing files.\n"
+                          "Always = overwrite without warning.\n"
+                          "Versioned = create filename_v1.dds, filename_v2.dds, etc.")
+
+        tk.Frame(bot, bg=COLORS["border"], height=1).pack(fill="x", pady=(3, 2))
+
+        _watch_ck = tk.Checkbutton(bot, text="Watch folder (auto-convert)",
+                           variable=self.watch_mode, command=self._on_watch_toggle,
+                           fg=COLORS["text"], bg=COLORS["sidebar"],
+                           selectcolor=COLORS["input_bg"], activeforeground=COLORS["accent"],
+                           activebackground=COLORS["sidebar"], font=FONT_UI)
+        _watch_ck.pack(fill="x")
+        self._tip(_watch_ck, "Poll the input folder every 1.5 s and automatically convert any new files that appear. "
+                             "Useful for hot-reloading assets during development.")
+
+        # ── Canvas / file list fills remaining space between header and bottom controls ──
         lf = tk.Frame(sidebar, bg=COLORS["sidebar"]); lf.pack(fill="both", expand=True, padx=4, pady=4)
         self._list_canvas = tk.Canvas(lf, bg="#101010", highlightthickness=0)
         self._list_canvas.pack(fill="both", expand=True)
@@ -1108,23 +1272,6 @@ class DDSConverterApp:
         self._file_names = []
         self._row_frames = {}
         self._row_labels = {}
-        self._btn(sidebar, "↺  RELOAD", self.load_files,
-                  COLORS["border"], fg=COLORS["text"]).pack(fill="x", padx=8, pady=(0, 8))
-        # Queue controls
-        qf = tk.Frame(sidebar, bg=COLORS["sidebar"]) ; qf.pack(fill="x", padx=8)
-        self._btn(qf, "↑ MOVE UP", self._move_selected_up, COLORS["border"]).pack(fill="x")
-        self._btn(qf, "↓ MOVE DOWN", self._move_selected_down, COLORS["border"]).pack(fill="x", pady=(4,0))
-        self._btn(qf, "✖ REMOVE", self._remove_selected, COLORS["border"], fg=COLORS["warn"]).pack(fill="x", pady=(4,8))
-
-        # Overwrite / Watch controls
-        tk.Label(sidebar, text="OVERWRITE", fg=COLORS["subtext"], bg=COLORS["sidebar"],
-                 font=FONT_TITLE, anchor="w").pack(fill="x", padx=8)
-        ttk.Combobox(sidebar, textvariable=self.overwrite_mode, state="readonly",
-                     values=["Never", "Always", "Versioned"], width=20).pack(fill="x", padx=8, pady=(4,8))
-        tk.Checkbutton(sidebar, text="Watch folder (auto-convert on new files)", variable=self.watch_mode,
-                       command=self._on_watch_toggle, fg=COLORS["text"], bg=COLORS["sidebar"],
-                       selectcolor=COLORS["input_bg"], activeforeground=COLORS["accent"],
-                       activebackground=COLORS["sidebar"], font=FONT_UI).pack(fill="x", padx=8, pady=(0,8))
 
         # CENTER
         center = tk.Frame(body, bg=COLORS["bg"])
@@ -1154,16 +1301,20 @@ class DDSConverterApp:
                                values=["Fit","25%","50%","100%","200%"], width=8)
         zoom_cb.pack(side="left", padx=(6,8))
         zoom_cb.bind("<<ComboboxSelected>>", lambda e: (self._on_preview_change()))
+        self._tip(zoom_cb, "Preview zoom level. Fit = scales to fill the panel. Percentages show exact pixel size.")
 
         ck = tk.Checkbutton(ctrl_row, text="Checkerboard (alpha)", variable=self._preview_checker,
                             command=self._on_preview_change, fg=COLORS["text"], bg=COLORS["bg"],
                             selectcolor=COLORS["input_bg"], font=FONT_UI)
         ck.pack(side="left", padx=(0,12))
+        self._tip(ck, "Show a grey checkerboard behind transparent (alpha channel) areas of the image")
 
         tk.Label(ctrl_row, text="MIP:", fg=COLORS["subtext"], bg=COLORS["bg"], font=FONT_TITLE).pack(side="left")
         self._mip_slider = ttk.Scale(ctrl_row, from_=0, to=0, orient="horizontal",
                                      variable=self._preview_mip_level, command=lambda v: self._on_preview_change(), length=220)
         self._mip_slider.pack(side="left", padx=(6,4))
+        self._tip(self._mip_slider, "Preview mipmap level. Level 0 = full resolution. Each step halves the dimensions. "
+                                    "Range is calculated from the image size.")
         self._mip_label = tk.Label(ctrl_row, text="0", fg=COLORS["subtext"], bg=COLORS["bg"], font=FONT_MONO, width=6)
         self._mip_label.pack(side="left")
 
@@ -1181,10 +1332,14 @@ class DDSConverterApp:
         tk.Label(th, text="← click an image to add a tint",
                  fg=COLORS["subtext"], bg=COLORS["panel"],
                  font=("Segoe UI", 7, "italic")).pack(side="left", padx=4)
-        self._btn(th, "↪  APPLY TO ALL", self._apply_to_all,
-                  COLORS["border"], fg=COLORS["text"]).pack(side="right", padx=4, pady=4)
-        self._btn(th, "✖  CLEAR TINT", self._clear_tint,
-                  COLORS["border"], fg=COLORS["warn"]).pack(side="right", padx=4, pady=4)
+        _ata_btn = self._btn(th, "↪  APPLY TO ALL", self._apply_to_all,
+                  COLORS["border"], fg=COLORS["text"])
+        _ata_btn.pack(side="right", padx=4, pady=4)
+        self._tip(_ata_btn, "Apply the current colour, intensity, and blend mode to every file in the queue")
+        _clr_btn = self._btn(th, "✖  CLEAR TINT", self._clear_tint,
+                  COLORS["border"], fg=COLORS["warn"])
+        _clr_btn.pack(side="right", padx=4, pady=4)
+        self._tip(_clr_btn, "Remove the tint from the currently selected file only")
 
         tb = tk.Frame(tint_outer, bg=COLORS["panel"])
         tb.pack(fill="x", padx=10, pady=(2, 8))
@@ -1226,12 +1381,35 @@ class DDSConverterApp:
                                   variable=self._tint_intensity,
                                   command=self._on_slider, length=200)
         self._slider.pack(side="left", padx=4)
+        self._tip(self._slider, "Tint blend strength — 0% = no tint applied, 100% = fully replaced with tint colour")
         tk.Label(ctrl, text="MODE", fg=COLORS["subtext"], bg=COLORS["panel"],
                  font=FONT_TITLE, padx=10).pack(side="left")
         mode_cb = ttk.Combobox(ctrl, textvariable=self._tint_mode,
                                 values=BLEND_MODES, width=14, state="readonly", font=FONT_UI)
         mode_cb.pack(side="left")
         mode_cb.bind("<<ComboboxSelected>>", lambda e: self._on_tint_changed())
+        self._tip(mode_cb, "Blend mode for the tint colour.\n"
+                           "Multiply = darkens/tints.  Screen = lightens.\n"
+                           "Overlay = contrast boost.  Add = brightens.\n"
+                           "Tint (Lerp) = straight linear blend to solid colour.")
+
+        # Per-file DDS format override
+        fmt_row = tk.Frame(tb, bg=COLORS["panel"]); fmt_row.pack(fill="x", pady=(4, 0))
+        tk.Label(fmt_row, text="FILE FMT", fg=COLORS["subtext"], bg=COLORS["panel"],
+                 font=FONT_TITLE, width=8, anchor="e").pack(side="left")
+        self._file_fmt_var = tk.StringVar(value="(global)")
+        self._file_fmt_cb = ttk.Combobox(
+            fmt_row, textvariable=self._file_fmt_var, state="readonly", font=FONT_UI, width=16,
+            values=["(global)", "DXT1", "DXT3", "DXT5",
+                    "BC4_UNORM", "BC5_UNORM", "BC7_UNORM", "R8G8B8A8_UNORM"])
+        self._file_fmt_cb.pack(side="left", padx=6)
+        self._file_fmt_cb.bind("<<ComboboxSelected>>", lambda e: self._save_file_format())
+        self._tip(self._file_fmt_cb, "DDS format override for this specific file only.\n"
+                                     "Overrides the global format, preset, and PBR naming rules.\n"
+                                     "Set back to (global) to use the global format setting.")
+        tk.Label(fmt_row, text="DDS format override for this file only",
+                 fg=COLORS["subtext"], bg=COLORS["panel"],
+                 font=("Segoe UI", 7, "italic")).pack(side="left", padx=4)
 
         # Progress
         pf2 = tk.Frame(center, bg=COLORS["bg"]); pf2.pack(fill="x", padx=10, pady=(0, 4))
@@ -1259,8 +1437,9 @@ class DDSConverterApp:
         lh = tk.Frame(log_outer, bg=COLORS["sidebar"]); lh.pack(fill="x")
         tk.Label(lh, text="CONVERSION LOG", fg=COLORS["subtext"],
                  bg=COLORS["sidebar"], font=FONT_TITLE).pack(side="left", padx=10, pady=(8, 4))
-        self._btn(lh, "CLEAR", self.clear_log,
-                  COLORS["border"], fg=COLORS["text"]).pack(side="right", padx=8, pady=4)
+        _clr_log = self._btn(lh, "CLEAR", self.clear_log, COLORS["border"], fg=COLORS["text"])
+        _clr_log.pack(side="right", padx=8, pady=4)
+        self._tip(_clr_log, "Clear the conversion log panel (does not affect texforge_conversion.log on disk)")
         log_sb2 = tk.Scrollbar(log_outer); log_sb2.pack(side="right", fill="y")
         self.log = tk.Text(log_outer, bg="#0a0a0a", fg=COLORS["text"], font=FONT_MONO,
                            relief="flat", bd=0, wrap="none", state="disabled", cursor="arrow")
@@ -1289,6 +1468,11 @@ class DDSConverterApp:
         return tk.Button(parent, text=text, command=cmd, bg=bg, fg=fg,
                          relief="flat", font=FONT_TITLE, padx=padx, pady=3,
                          activebackground=COLORS["border"], activeforeground=fg, cursor="hand2")
+
+    def _tip(self, widget, text: str):
+        """Attach a hover tooltip to widget and return it."""
+        _Tooltip(widget, text)
+        return widget
 
     def _preview_box(self, parent, label):
         frame = tk.Frame(parent, bg=COLORS["panel"])
@@ -1393,6 +1577,9 @@ class DDSConverterApp:
             "watch_mode": bool(self.watch_mode.get()),
             "jpeg_quality": int(self.jpeg_quality.get()),
             "file_tints": self._file_tints,
+            "file_formats": self._file_formats,
+            "rename_prefix": self._rename_prefix.get(),
+            "rename_suffix": self._rename_suffix.get(),
         }
         try:
             with open(p, "w", encoding="utf-8") as f:
@@ -1437,6 +1624,12 @@ class DDSConverterApp:
                 self.jpeg_quality.set(int(data.get("jpeg_quality")))
             if "file_tints" in data:
                 self._file_tints = data.get("file_tints") or {}
+            if "file_formats" in data:
+                self._file_formats = data.get("file_formats") or {}
+            if "rename_prefix" in data:
+                self._rename_prefix.set(data.get("rename_prefix", ""))
+            if "rename_suffix" in data:
+                self._rename_suffix.set(data.get("rename_suffix", ""))
             # refresh UI
             self._save_settings(silent=True)
             self.load_files()
@@ -1509,7 +1702,12 @@ class DDSConverterApp:
     def _open_output_folder(self):
         path = self.output_folder.get()
         if path and os.path.isdir(path):
-            os.startfile(path)
+            if sys.platform == "win32":
+                os.startfile(path)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
         else:
             messagebox.showinfo("No folder", "Set an output folder first.")
 
@@ -1555,6 +1753,8 @@ class DDSConverterApp:
         self._tint_intensity.set(tint.get("intensity", 0.40) * 100)
         self._tint_mode.set(tint.get("mode", "Multiply"))
         self._sync_tint_ui()
+        if hasattr(self, "_file_fmt_var"):
+            self._file_fmt_var.set(self._file_formats.get(fname, "(global)"))
         self._refresh_before_preview()
         if self.output_folder.get():
             stem     = os.path.splitext(fname)[0]
@@ -1624,6 +1824,14 @@ class DDSConverterApp:
             self._file_tints.pop(self._selected_file, None)
         self._refresh_list_colors()
         self.stat_tinted.config(text=str(len(self._file_tints)))
+
+    def _save_file_format(self):
+        if not self._selected_file: return
+        fmt = self._file_fmt_var.get()
+        if fmt and fmt != "(global)":
+            self._file_formats[self._selected_file] = fmt
+        else:
+            self._file_formats.pop(self._selected_file, None)
 
     def _clear_tint(self):
         self._tint_color.set("")
@@ -1883,7 +2091,10 @@ class DDSConverterApp:
                     # fallback to original
                     convert_src = src
 
-            dst_file = os.path.join(out, stem + out_ext)
+            _pfx = self._rename_prefix.get().strip()
+            _sfx = self._rename_suffix.get().strip()
+            out_stem = f"{_pfx}{stem}{_sfx}" if (_pfx or _sfx) else stem
+            dst_file = os.path.join(out, out_stem + out_ext)
 
             # Overwrite/version rules guarded by lock
             with write_lock:
@@ -1932,6 +2143,11 @@ class DDSConverterApp:
                             file_fmt = "BC4_UNORM"
                         elif any(k in lower for k in ("albedo", "basecolor", "diffuse", "diff")):
                             file_fmt = "BC7_UNORM"
+
+                    # per-file format override takes priority over everything else
+                    _per_fmt = self._file_formats.get(fname)
+                    if _per_fmt and _per_fmt != "(global)":
+                        file_fmt = _per_fmt
 
                     cmd = [texconv_bin, "-f", file_fmt, "-o", out, "-y"]
                     if not mips: cmd += ["-m", "1"]
@@ -1990,129 +2206,97 @@ class DDSConverterApp:
 
             return result_rec
 
-        # Process files either sequentially or in parallel with chunking
-        chunk_size = max(1, min(256, (workers * 8)))
+        # ── Shared result handler (used by both sequential and parallel paths) ──
+        def _handle_result(res, i):
+            nonlocal done_n, fail_n
+            file_fmt = res.get("format", "")
+            dst_file = res.get("dst")
+            fname_r  = res.get("fname", "")
+
+            # ETA estimation
+            _elapsed = (datetime.now() - t0).total_seconds()
+            _rate    = _elapsed / i if i > 0 else 0
+            _eta     = f"  ETA ~{int(_rate * (total - i))}s" if i < total and _rate > 0 else ""
+            _prog_label = f"[{i}/{total}]  {fname_r}{_eta}"
+
+            if res.get("skipped"):
+                self._log_file_status("SKIP", os.path.basename(dst_file),
+                                      reason=res.get("reason", "already exists"))
+                try:
+                    size_b = os.path.getsize(dst_file) if os.path.exists(dst_file) else 0
+                    manifest_entries.append({"file": os.path.basename(dst_file), "status": "SKIP",
+                                             "format": "", "reason": res.get("reason", ""), "size": size_b})
+                except Exception:
+                    pass
+                done_n += 1
+                self.stat_done.config(text=str(done_n))
+                self.root.after(0, lambda f=fname_r: self._try_refresh_after(f))
+                self.root.after(0, lambda _i=i-1: self._mark_row(_i, True))
+                self._set_progress(i, total, _prog_label)
+                return
+
+            if res.get("success"):
+                sz = f"  ({os.path.getsize(dst_file)/1024:.1f} KB)" if os.path.exists(dst_file) else ""
+                self._log("done", f"  ✔ {os.path.splitext(fname_r)[0]}{out_ext}{sz}")
+                note = ""
+                if is_dds and self.dds_mode.get().startswith("Auto"):
+                    note = "alpha detected" if file_fmt.startswith("DXT5") else "no alpha"
+                self._log_file_status("OK", os.path.basename(dst_file), reason=note, fmt=file_fmt)
+                done_n += 1
+                self.stat_done.config(text=str(done_n))
+                self.root.after(0, lambda f=fname_r: self._try_refresh_after(f))
+            else:
+                self._log("fail", f"  ✘ FAILED: {fname_r}  ({res.get('reason', '')})")
+                self._log_file_status("FAIL", fname_r, reason=res.get("reason", ""), fmt=file_fmt)
+                fail_n += 1
+                self.stat_fail.config(text=str(fail_n))
+
+            try:
+                out_name = os.path.basename(dst_file) if dst_file else os.path.basename(fname_r)
+                size_b   = os.path.getsize(dst_file) if dst_file and os.path.exists(dst_file) else 0
+                manifest_entries.append({"file": out_name,
+                                         "status": "OK" if res.get("success") else "FAIL",
+                                         "format": file_fmt, "reason": res.get("reason", ""),
+                                         "size": size_b})
+            except Exception:
+                pass
+
+            self.root.after(0, lambda _i=i-1, _ok=res.get("success"): self._mark_row(_i, _ok))
+            self._set_progress(i, total, _prog_label)
+
+        # ── Dispatch: sequential or parallel with chunking ──
+        chunk_size = max(1, min(256, workers * 8))
         if workers <= 1:
-            # sequential (preserves original behavior)
             for i, fname in enumerate(files, 1):
                 self._set_progress(i - 1, total, f"[{i}/{total}]  {fname}")
                 self._log("sub", f"──── [{i}/{total}] {fname}")
-                res = convert_file(fname, i-1)
-                # handle result
-                file_fmt = res.get("format", "")
-                dst_file = res.get("dst")
-                if res.get("skipped"):
-                    self._log_file_status("SKIP", os.path.basename(dst_file), reason=res.get("reason", "already exists"))
-                    try:
-                        size_b = os.path.getsize(dst_file) if os.path.exists(dst_file) else 0
-                        manifest_entries.append({"file": os.path.basename(dst_file), "status": "SKIP", "format": "", "reason": res.get("reason",""), "size": size_b})
-                    except Exception:
-                        pass
-                    done_n += 1
-                    self.stat_done.config(text=str(done_n))
-                    self.root.after(0, lambda f=fname: self._try_refresh_after(f))
-                    self.root.after(0, lambda idx=i-1, good=True: self._mark_row(idx, True))
-                    self._set_progress(i, total, f"[{i}/{total}]  {fname}")
-                    continue
-
-                if res.get("success"):
-                    sz = f"  ({os.path.getsize(dst_file)/1024:.1f} KB)" if os.path.exists(dst_file) else ""
-                    self._log("done", f"  ✔ {os.path.splitext(fname)[0]}{out_ext}{sz}")
-                    note = ""
-                    if is_dds and self.dds_mode.get().startswith("Auto"):
-                        note = "alpha detected" if res.get("format","").startswith("DXT5") else "no alpha"
-                    self._log_file_status("OK", os.path.basename(dst_file), reason=note, fmt=res.get("format",""))
-                    done_n += 1
-                    self.stat_done.config(text=str(done_n))
-                    self.root.after(0, lambda f=fname: self._try_refresh_after(f))
-                else:
-                    self._log("fail", f"  ✘ FAILED: {fname}  ({res.get('reason','')})")
-                    self._log_file_status("FAIL", fname, reason=res.get("reason",""), fmt=res.get("format",""))
-                    fail_n += 1
-                    self.stat_fail.config(text=str(fail_n))
-
-                # manifest
-                try:
-                    out_name = os.path.basename(dst_file) if dst_file else os.path.basename(fname)
-                    size_b = os.path.getsize(dst_file) if dst_file and os.path.exists(dst_file) else 0
-                    manifest_entries.append({"file": out_name, "status": ("OK" if res.get("success") else "FAIL"), "format": res.get("format",""), "reason": res.get("reason",""), "size": size_b})
-                except Exception:
-                    pass
-
-                self.root.after(0, lambda idx=i-1, good=res.get("success"): self._mark_row(idx, good))
-                self._set_progress(i, total, f"[{i}/{total}]  {fname}")
+                _handle_result(convert_file(fname, i - 1), i)
         else:
-            # parallel
             from concurrent.futures import ThreadPoolExecutor, as_completed
             for chunk_start in range(0, len(files), chunk_size):
-                chunk = files[chunk_start:chunk_start+chunk_size]
-                futures = {}
+                chunk = files[chunk_start:chunk_start + chunk_size]
                 with ThreadPoolExecutor(max_workers=workers) as ex:
-                    for offset, fname in enumerate(chunk):
-                        idx = chunk_start + offset
-                        futures[ex.submit(convert_file, fname, idx)] = (fname, idx)
-
+                    futures = {ex.submit(convert_file, fname, chunk_start + off): fname
+                               for off, fname in enumerate(chunk)}
                     for fut in as_completed(futures):
                         res = fut.result()
-                        fname = res.get("fname")
-                        idx = res.get("index", 0)
-                        i = idx + 1
-                        dst_file = res.get("dst")
-                        file_fmt = res.get("format", "")
-
-                        if res.get("skipped"):
-                            self._log_file_status("SKIP", os.path.basename(dst_file), reason=res.get("reason","already exists"))
-                            try:
-                                size_b = os.path.getsize(dst_file) if os.path.exists(dst_file) else 0
-                                manifest_entries.append({"file": os.path.basename(dst_file), "status": "SKIP", "format": "", "reason": res.get("reason",""), "size": size_b})
-                            except Exception:
-                                pass
-                            done_n += 1
-                            self.stat_done.config(text=str(done_n))
-                            self.root.after(0, lambda f=fname: self._try_refresh_after(f))
-                            self.root.after(0, lambda idx=idx, good=True: self._mark_row(idx, True))
-                            self._set_progress(i, total, f"[{i}/{total}]  {fname}")
-                            continue
-
-                        if res.get("success"):
-                            sz = f"  ({os.path.getsize(dst_file)/1024:.1f} KB)" if os.path.exists(dst_file) else ""
-                            self._log("done", f"  ✔ {os.path.splitext(fname)[0]}{out_ext}{sz}")
-                            note = ""
-                            if is_dds and self.dds_mode.get().startswith("Auto"):
-                                note = "alpha detected" if file_fmt.startswith("DXT5") else "no alpha"
-                            self._log_file_status("OK", os.path.basename(dst_file), reason=note, fmt=file_fmt)
-                            done_n += 1
-                            self.stat_done.config(text=str(done_n))
-                            self.root.after(0, lambda f=fname: self._try_refresh_after(f))
-                        else:
-                            self._log("fail", f"  ✘ FAILED: {fname}  ({res.get('reason','')})")
-                            self._log_file_status("FAIL", fname, reason=res.get("reason",""), fmt=file_fmt)
-                            fail_n += 1
-                            self.stat_fail.config(text=str(fail_n))
-
-                        try:
-                            out_name = os.path.basename(dst_file) if dst_file else os.path.basename(fname)
-                            size_b = os.path.getsize(dst_file) if dst_file and os.path.exists(dst_file) else 0
-                            manifest_entries.append({"file": out_name, "status": ("OK" if res.get("success") else "FAIL"), "format": file_fmt, "reason": res.get("reason",""), "size": size_b})
-                        except Exception:
-                            pass
-
-                        self.root.after(0, lambda idx=idx, good=res.get("success"): self._mark_row(idx, good))
-                        self._set_progress(i, total, f"[{i}/{total}]  {fname}")
+                        _handle_result(res, res.get("index", 0) + 1)
 
         for p in tmp_out:
             try: os.unlink(p)
             except: pass
 
-        # write export manifest into output folder
+        # write export manifest into output folder (single rolling file, overwritten each run)
         try:
             if manifest_entries and out:
-                manifest_path = os.path.join(out, f"export_manifest_{datetime.now():%Y%m%d_%H%M%S}.json")
+                manifest_path = os.path.join(out, "export_manifest.json")
                 with open(manifest_path, "w", encoding="utf-8") as mf:
-                    json.dump({"generated": datetime.now().isoformat(), "entries": manifest_entries}, mf, indent=2, ensure_ascii=False)
-                self._log("info", f"Export manifest written: {os.path.basename(manifest_path)}")
-        except Exception:
-            pass
+                    json.dump({"generated": datetime.now().isoformat(),
+                               "total": total, "done": done_n, "failed": fail_n,
+                               "entries": manifest_entries}, mf, indent=2, ensure_ascii=False)
+                self._log("info", f"Manifest: {manifest_path}")
+        except Exception as e:
+            self._log("warn", f"Manifest write failed: {e}")
 
         elapsed = (datetime.now() - t0).seconds
         self._log("head", "═" * 36)
@@ -2137,21 +2321,32 @@ class DDSConverterApp:
     # ─────────────────────────────────────────
     def _move_selected_up(self):
         f = self._selected_file
-        if not f: return
+        if not f or f not in self._file_names: return
         idx = self._file_names.index(f)
         if idx > 0:
             self._file_names[idx], self._file_names[idx-1] = self._file_names[idx-1], self._file_names[idx]
-            self.load_files()
-            self._select_file_row(f)
+            self._rebuild_file_list_order()
 
     def _move_selected_down(self):
         f = self._selected_file
-        if not f: return
+        if not f or f not in self._file_names: return
         idx = self._file_names.index(f)
         if idx < len(self._file_names) - 1:
             self._file_names[idx], self._file_names[idx+1] = self._file_names[idx+1], self._file_names[idx]
-            self.load_files()
-            self._select_file_row(f)
+            self._rebuild_file_list_order()
+
+    def _rebuild_file_list_order(self):
+        """Re-pack existing row widgets in the current _file_names order without re-reading disk."""
+        for fname in self._file_names:
+            if fname in self._row_frames:
+                self._row_frames[fname].pack_forget()
+        for fname in self._file_names:
+            if fname in self._row_frames:
+                self._row_frames[fname].pack(fill="x", pady=1, padx=2)
+        self._refresh_list_colors()
+        if self._selected_file and self._selected_file in self._row_frames:
+            self._row_frames[self._selected_file].config(bg=COLORS["accent2"])
+            self._row_labels[self._selected_file].config(bg=COLORS["accent2"], fg="#fff")
 
     def _remove_selected(self):
         f = self._selected_file
@@ -2207,9 +2402,150 @@ class DDSConverterApp:
 
 
 # =========================
+# CLI HEADLESS MODE
+# =========================
+def _run_cli(args):
+    """Headless batch conversion — no GUI required."""
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="TexForge",
+        description="TexForge headless batch converter. Outputs DDS, PNG, JPG, TGA, BMP, WebP, or SVG.",
+    )
+    parser.add_argument("input",  help="Input folder containing images")
+    parser.add_argument("output", help="Output folder for converted files")
+    parser.add_argument("--format", default="DXT5",
+                        choices=["DXT1","DXT3","DXT5","BC4_UNORM","BC5_UNORM","BC7_UNORM","R8G8B8A8_UNORM","Auto"],
+                        help="DDS compression format (default: DXT5)")
+    parser.add_argument("--out-type", default="DDS",
+                        choices=["DDS","PNG","JPG","TGA","BMP","WebP","SVG"],
+                        help="Output file type (default: DDS)")
+    parser.add_argument("--no-mips", action="store_true", help="Disable mipmap generation")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Parallel worker count (default: 1)")
+    parser.add_argument("--overwrite", choices=["Never","Always","Versioned"], default="Never")
+    parser.add_argument("--gpu", action="store_true",
+                        help="Use texconv_gpu.exe if present")
+    parser.add_argument("--quality", type=int, default=90,
+                        help="JPEG quality 1-100 (default: 90)")
+    ns = parser.parse_args(args)
+
+    inp = os.path.abspath(ns.input)
+    out = os.path.abspath(ns.output)
+    if not os.path.isdir(inp):
+        print(f"ERROR: input folder not found: {inp}", file=sys.stderr); sys.exit(1)
+    os.makedirs(out, exist_ok=True)
+
+    files = sorted(f for f in os.listdir(inp) if f.lower().endswith(VALID_EXTENSIONS))
+    if not files:
+        print("No valid image files found."); sys.exit(0)
+
+    out_type = ns.out_type
+    is_dds   = out_type == "DDS"
+    fmt      = ns.format
+    mips     = not ns.no_mips
+    workers  = max(1, ns.workers)
+    overwrite = ns.overwrite
+    quality  = ns.quality
+
+    # resolve texconv binary
+    texconv_bin = os.path.join(APP_DIR, TEXCONV_PATH)
+    if ns.gpu:
+        gpu_path = os.path.join(APP_DIR, "texconv_gpu.exe")
+        if os.path.exists(gpu_path):
+            texconv_bin = gpu_path
+        else:
+            print("WARNING: texconv_gpu.exe not found, using CPU texconv.", file=sys.stderr)
+
+    if is_dds and not os.path.exists(texconv_bin):
+        print(f"ERROR: {texconv_bin} not found.", file=sys.stderr); sys.exit(1)
+
+    EXT_MAP = {"DDS": ".dds", "SVG": ".svg", "JPG": ".jpg", "JPEG": ".jpg"}
+    out_ext = EXT_MAP.get(out_type, f".{out_type.lower()}")
+
+    import threading, concurrent.futures as cf
+    write_lock = threading.Lock()
+    done_n = fail_n = 0
+    manifest = []
+
+    def _cli_convert(fname):
+        src  = os.path.join(inp, fname)
+        stem = os.path.splitext(fname)[0]
+        extn = os.path.splitext(fname)[1]
+        dst  = os.path.join(out, stem + out_ext)
+
+        with write_lock:
+            if os.path.exists(dst):
+                if overwrite == "Never":
+                    return (fname, "SKIP", "", "already exists")
+                elif overwrite == "Versioned":
+                    base, e2 = os.path.splitext(dst)
+                    n = 1
+                    while os.path.exists(f"{base}_v{n}{e2}"): n += 1
+                    dst = f"{base}_v{n}{e2}"
+
+        try:
+            if is_dds:
+                file_fmt = fmt
+                if fmt == "Auto":
+                    try:
+                        p = Image.open(src)
+                        has_a = "A" in p.getbands() and p.getchannel("A").getextrema()[0] < 255
+                    except Exception:
+                        has_a = True
+                    file_fmt = "DXT5" if has_a else "DXT1"
+                cmd = [texconv_bin, "-f", file_fmt, "-o", out, "-y"]
+                if not mips: cmd += ["-m", "1"]
+                cmd.append(src)
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+                if proc.returncode != 0:
+                    return (fname, "FAIL", file_fmt, proc.stderr.strip() or f"exit {proc.returncode}")
+                return (fname, "OK", file_fmt, "")
+            elif out_type == "SVG":
+                save_as_svg(Image.open(src), dst)
+                return (fname, "OK", "SVG", "")
+            else:
+                img = Image.open(src)
+                pil_fmt = "JPEG" if out_type in ("JPG","JPEG") else out_type
+                if pil_fmt == "JPEG" and img.mode in ("RGBA","LA","P"):
+                    img = img.convert("RGB")
+                kw = {"quality": quality, "optimize": True} if pil_fmt == "JPEG" else {}
+                img.save(dst, format=pil_fmt, **kw)
+                return (fname, "OK", out_type, "")
+        except Exception as e:
+            return (fname, "FAIL", out_type, str(e))
+
+    total = len(files)
+    print(f"Converting {total} file(s) → {out_type}  workers={workers}")
+
+    run = cf.ThreadPoolExecutor(max_workers=workers).map(_cli_convert, files)
+    for fname, status, fmt_used, reason in run:
+        icon = "✔" if status == "OK" else ("–" if status == "SKIP" else "✘")
+        print(f"  {icon} [{status}] {fname}" + (f"  ({reason})" if reason else ""))
+        if status in ("OK", "SKIP"): done_n += 1
+        else: fail_n += 1
+        manifest.append({"file": fname, "status": status, "format": fmt_used, "reason": reason})
+
+    manifest_path = os.path.join(out, "export_manifest.json")
+    try:
+        with open(manifest_path, "w", encoding="utf-8") as mf:
+            json.dump({"generated": datetime.now().isoformat(),
+                       "total": total, "done": done_n, "failed": fail_n,
+                       "entries": manifest}, mf, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"WARNING: manifest write failed: {e}", file=sys.stderr)
+
+    print(f"\nDone  ✔ {done_n}  ✘ {fail_n}  manifest → {manifest_path}")
+    sys.exit(0 if fail_n == 0 else 1)
+
+
+# =========================
 # RUN
 # =========================
 if __name__ == "__main__":
+    # If --cli is the first argument, run headless and skip the GUI entirely
+    if len(sys.argv) > 1 and sys.argv[1] == "--cli":
+        _run_cli(sys.argv[2:])
+
     root = tk.Tk()
     try:
         app = DDSConverterApp(root)
